@@ -24,7 +24,7 @@ USER root
 # Install Gradle from distribution
 RUN curl -L -o /tmp/gradle.zip --retry 5 https://services.gradle.org/distributions/gradle-4.7-bin.zip && \
     unzip -d /opt/gradle /tmp/gradle.zip && \
-    find /opt/gradle -type d -name "gradle*" -maxdepth 1 -print0 | xargs -0 mv -t /op/gradle/latest && \
+	for f in /opt/gradle/*; do mv $f /opt/gradle/latest; done && \
 	ln -sf /opt/gradle/latest/bin/gradle /usr/local/bin/gradle
     
 RUN chgrp -R 0 /opt/gradle && \
