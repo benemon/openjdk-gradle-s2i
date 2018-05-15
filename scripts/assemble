@@ -89,7 +89,7 @@ function build_gradle() {
     echo "Setting GRADLE_OPTS to ${GRADLE_OPTS}"
   fi
   # Default args: no tests, if a module is specified, only assemble this module
-  local gradle_args=${GRADLE_ARGS:"assemble"}
+  local gradle_args=${GRADLE_ARGS:-assemble}
 
   echo "Found build.gradle ... "
   local gradle_cmd="${gradle_args} -Djava.net.preferIPv4Stack=true ${GRADLE_ARGS_APPEND}"
