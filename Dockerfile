@@ -21,11 +21,15 @@ COPY scripts/ /opt/s2i/
 
 USER root
 
+# Installation dependencies
 RUN mkdir -p /opt/gradle/ && \
 	yum-config-manager --disable \*-htb-* \*-rt-* \*-eus* \*-aus* \*-ha-* && \
     yum -y install unzip && \
     yum clean all && \
-    curl -o /tmp/gradle.zip --retry 5 https://services.gradle.org/distributions/gradle-4.7-bin.zip && \
+    rm -rf /var/cache/yum
+
+# Install Gradle from distribution
+RUN curl -o /tmp/gradle.zip --retry 5 https://services.gradle.org/distributions/gradle-4.7-bin.zip && \
     unzip -d /opt/gradle /tmp/gradle.zip && \
     find /opt/gradle -maxdepth=1 -type d -name "gradle*" -print0 | xargs -0 mv -t /op/gradle/latest && \
 	ln -sf /opt/gradle/latest/bin/gradle /usr/local/bin/gradle
