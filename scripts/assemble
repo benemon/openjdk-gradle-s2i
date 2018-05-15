@@ -1,0 +1,169 @@
+#!/bin/bash
+# Global S2I variable setup
+set -eo pipefail
+
+if [ "${SCRIPT_DEBUG}" = "true" ] ; then
+    set -x
+    echo "Script debugging is enabled, allowing bash commands and their arguments to be printed as they are executed"
+fi
+
+SCRIPT_DIR="/usr/local/s2i"
+source "${SCRIPT_DIR}/s2i-setup"
+source "${SCRIPT_DIR}/common.sh"
+
+# Gradle arguments setting up the environment
+GRADLE_CACHE="${HOME}/.gradle"
+
+# =========================================================================
+# Helper functions:
+
+function check_error() {
+  local label=$1
+  local error=$2
+  if [ ${error} -ne 0 ]; then
+    echo "Aborting due to error code $error for $label"
+    exit ${error}
+  fi
+}
+
+function get_output_dir() {
+  local dir=""
+
+  if [ x"${ARTIFACT_DIR}" = x ]; then
+    dir="${S2I_SOURCE_DIR}/build/lib"
+  else
+    if [ "${ARTIFACT_DIR:0:1}" = "/" ]; then
+       echo "ARTIFACT_DIR \"${ARTIFACT_DIR}\" must not be absolute but relative to the source directory"
+       exit 1
+    fi
+    dir="${S2I_SOURCE_DIR}/${ARTIFACT_DIR}"
+  fi
+
+  # Normalize dir
+  dir=$(echo ${dir} | tr -s /)
+  dir=${dir%/}
+  # The parent must exist but target/ won't exist yet
+  if [ ! -d $(dirname "${dir}"}) ]; then
+    echo "Please specify an existing build directory ARTIFACT_DIR (tried '$(dirname "${dir}")' which does not exist)"
+    exit 1
+  fi
+  echo ${dir}
+}
+
+function copy_dir() {
+  local src=$1
+  local dest=$2
+  
+  # Copy recursively and preserve ownership: -a
+  cp -a ${src}/* ${dest}
+}
+
+function copy_artifacts() {
+    local dir=$1
+    local dest=$2
+
+    cd ${dir}
+
+    local cp_args=${ARTIFACT_COPY_ARGS}
+    if [ x"${cp_args}" = x ]; then
+        if [ -d "hawt-app" ]; then
+            cp_args="-r hawt-app/*"
+        else
+            cp_args="*.jar"
+        fi
+    fi
+    echo "Running: cp ${cp_args} ${dest}"
+    cp ${cp_args} ${dest}
+}
+
+function build_gradle() {
+  # Where artifacts are created during build
+  local build_dir=$1
+
+  # Where to put the artifacts
+  local app_dir=$2
+
+  local jvm_option_file=/opt/run-java/java-default-options
+  if [ -z "${GRADLE_OPTS}" -a -x "$jvm_option_file" ] ; then
+    export GRADLE_OPTS="$($jvm_option_file)"
+    echo "Setting GRADLE_OPTS to ${GRADLE_OPTS}"
+  fi
+  # Default args: no tests, if a module is specified, only assemble this module
+  local gradle_args=${GRADLE_ARGS:-"assemble"}
+
+  echo "Found build.gradle ... "
+  local gradle_cmd="${gradle_args} -Djava.net.preferIPv4Stack=true ${GRADLE_ARGS_APPEND}"
+  echo "Running 'gradle ${gradle_cmd}'"
+
+  local old_dir=$(pwd)
+  cd ${S2I_SOURCE_DIR}
+  check_error "changing directory to ${S2I_SOURCE_DIR}" $?
+
+  # =========
+  # Run Gradle
+  gradle --version
+  gradle ${gradle_cmd}
+  check_error "Gradle assemble" $?
+
+  # ==============
+  # Copy artifacts
+  echo "Copying Gradle artifacts from ${build_dir} to ${app_dir} ..."
+  copy_artifacts ${build_dir} ${app_dir}
+  check_error "copying artifacts from ${build_dir} to ${app_dir}" $?
+
+  # ======================
+  # ======================
+  # Remove cache if desired
+  if [ "x${GRADLE_CACHE}" != "x" ]; then
+    rm -rf "${GRADLE_CACHE}"
+    check_error "Cannot remove local Gradle cache ${GRADELE_CACHE" $?
+  fi
+
+  cd ${old_dir}
+}
+
+# =========================================================================
+# Main
+
+echo "=================================================================="
+echo "Starting S2I Java Build ....."
+build_dir=$(get_output_dir)
+check_error "Cannot get output dir: $build_dir" $?
+if [ -f "${S2I_SOURCE_DIR}/build.gradle" ]; then
+  echo "Gradle build detected"
+  # If a buid.gradle is present use gradle
+  build_gradle ${build_dir} ${DEPLOYMENTS_DIR}
+elif [ -f "${S2I_SOURCE_DIR}/Dockerfile" ]; then
+  # This is a S2I binary build coming from fabric8-maven-plugin
+  echo "S2I binary build from fabric8-maven-plugin detected"
+  if [ -d "${S2I_SOURCE_DIR}/maven" ]; then
+    binary_dir="${S2I_SOURCE_DIR}/maven"
+  elif [ -d "${S2I_SOURCE_DIR}/deployments" ]; then
+    binary_dir="${S2I_SOURCE_DIR}/deployments"
+  elif [ $(find "${S2I_SOURCE_DIR}" -maxdepth 1 -type d | grep -v -e "^${S2I_SOURCE_DIR}$" | wc -l) == 1 ]; then
+    # Found a single directory, take this
+    binary_dir=$(find "${S2I_SOURCE_DIR}" -maxdepth 1 -type d | grep -v -e "^${S2I_SOURCE_DIR}$")
+  else
+    check_error "No single directory found in ${S2I_SOURCE_DIR} but:\n $(ls -l ${S2I_SOURCE_DIR})" 1
+  fi
+  echo "Copying binaries from ${binary_dir} to ${DEPLOYMENTS_DIR} ..."
+  copy_dir ${binary_dir} ${DEPLOYMENTS_DIR}
+  check_error "copying ${binary_dir} to ${DEPLOYMENTS_DIR}" $?  
+else
+  echo "S2I source build with plain binaries detected"
+  if [ -d "${S2I_SOURCE_DIR}/deployments" ]; then
+    default_binary_dir="${S2I_SOURCE_DIR}/deployments"
+  else
+    default_binary_dir="${S2I_SOURCE_DIR}"
+  fi
+  binary_dir="${ARTIFACT_DIR:-${default_binary_dir}}"
+  # Assuming that the source already contains compiled artefacts
+  echo "Copying binaries from ${binary_dir} to ${DEPLOYMENTS_DIR} ..."
+  copy_dir ${binary_dir} ${DEPLOYMENTS_DIR}
+  check_error "copying ${binary_dir} to ${DEPLOYMENTS_DIR}" $?
+fi
+
+# Remove java tmp perf data dir owned by 185
+rm -rf /tmp/hsperfdata_jboss
+
+echo "... done"
