@@ -10,6 +10,7 @@ fi
 SCRIPT_DIR="/usr/local/s2i"
 source "${SCRIPT_DIR}/s2i-setup"
 source "${SCRIPT_DIR}/common.sh"
+source "${SCRIPT_DIR}/assemble"
 
 # Gradle arguments setting up the environment
 GRADLE_CACHE="${HOME}/.gradle"
@@ -17,16 +18,7 @@ GRADLE_CACHE="${HOME}/.gradle"
 # =========================================================================
 # Helper functions:
 
-function check_error() {
-  local label=$1
-  local error=$2
-  if [ ${error} -ne 0 ]; then
-    echo "Aborting due to error code $error for $label"
-    exit ${error}
-  fi
-}
-
-function get_output_dir() {
+function get_gradle_output_dir() {
   local dir=""
 
   if [ x"${ARTIFACT_DIR}" = x ]; then
@@ -54,15 +46,7 @@ function get_output_dir() {
   echo ${dir}
 }
 
-function copy_dir() {
-  local src=$1
-  local dest=$2
-  
-  # Copy recursively and preserve ownership: -a
-  cp -a ${src}/* ${dest}
-}
-
-function copy_artifacts() {
+function copy_gradle_artifacts() {
     local dir=$1
     local dest=$2
 
@@ -125,12 +109,20 @@ function build_gradle() {
 
 echo "=================================================================="
 echo "Starting S2I Java Build ....."
-build_dir=$(get_output_dir)
-check_error "Cannot get output dir: $build_dir" $?
+
 if [ -f "${S2I_SOURCE_DIR}/build.gradle" ]; then
   echo "Gradle build detected"
+  build_dir=$(get_gradle_output_dir)
+  check_error "Cannot get output dir: $build_dir" $?
   # If a buid.gradle is present use gradle
   build_gradle ${build_dir} ${DEPLOYMENTS_DIR}
+elif [ -f "${S2I_SOURCE_DIR}/pom.xml" ]; then
+  echo "Maven build detected"
+  build_dir=$(get_output_dir)
+  check_error "Cannot get output dir: $build_dir" $?
+  # If a pom.xml is present use maven
+  setup_maven
+  build_maven ${build_dir} ${DEPLOYMENTS_DIR} 
 elif [ -f "${S2I_SOURCE_DIR}/Dockerfile" ]; then
   # This is a S2I binary build coming from fabric8-maven-plugin
   echo "S2I binary build from fabric8-maven-plugin detected"
