@@ -22,6 +22,7 @@ COPY scripts/ /opt/s2i/
 USER root
 
 RUN mkdir -p /opt/gradle/ && \
+	yum-config-manager --disable \*-htb-* \*-rt-* \*-eus* \*-aus* \*-ha-* && \
     yum -y install unzip && \
     yum clean all && \
     curl -o /tmp/gradle.zip --retry 5 https://services.gradle.org/distributions/gradle-4.7-bin.zip && \
