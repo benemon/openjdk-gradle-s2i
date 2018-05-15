@@ -7,9 +7,7 @@ if [ "${SCRIPT_DEBUG}" = "true" ] ; then
     echo "Script debugging is enabled, allowing bash commands and their arguments to be printed as they are executed"
 fi
 
-SCRIPT_DIR="/usr/local/s2i"
-source "${SCRIPT_DIR}/s2i-setup"
-source "${SCRIPT_DIR}/common.sh"
+SCRIPT_DIR="/usr/local/s2i/"
 source "${SCRIPT_DIR}/assemble"
 
 # Gradle arguments setting up the environment
