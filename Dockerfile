@@ -19,6 +19,8 @@ LABEL name="openjdk18-gradle-openshift" \
       
 COPY scripts/ /opt/s2i/
 
+USER root
+
 RUN mkdir -p /opt/gradle/ && \
     yum -y install unzip && \
     yum clean all && \
