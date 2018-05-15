@@ -1,4 +1,4 @@
-FROM redhat-openjdk-18/openjdk18-openshift
+FROM registry.access.redhat.com/redhat-openjdk-18/openjdk18-openshift:latest
 
 MAINTAINER Ben Holmes <bholmes@redhat.com>
 
@@ -12,7 +12,6 @@ LABEL name="openjdk18-gradle-openshift" \
       io.openshift.tags="builder,java" \
       io.openshift.s2i.destination="/tmp" \
       org.jboss.deployments-dir="/deployments" \
-      org.concrt.version="1.4.1" \
       description="Source To Image (S2I) image for Red Hat OpenShift providing Gradle and OpenJDK 1.8" \
       summary="Source To Image (S2I) image for Red Hat OpenShift providing Gradle and OpenJDK 1.8" \
       io.fabric8.s2i.version.jolokia="1.5.0-redhat-1" \
