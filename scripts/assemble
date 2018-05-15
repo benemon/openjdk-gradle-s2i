@@ -8,7 +8,10 @@ if [ "${SCRIPT_DEBUG}" = "true" ] ; then
 fi
 
 SCRIPT_DIR="/usr/local/s2i/"
-source "${SCRIPT_DIR}/assemble"
+
+pushd ${SCRIPT_DIR}
+  source "${SCRIPT_DIR}/assemble"
+popd
 
 # Gradle arguments setting up the environment
 GRADLE_CACHE="${HOME}/.gradle"
