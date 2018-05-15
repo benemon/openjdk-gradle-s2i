@@ -30,7 +30,7 @@ function get_output_dir() {
   local dir=""
 
   if [ x"${ARTIFACT_DIR}" = x ]; then
-    dir="${S2I_SOURCE_DIR}/build/lib"
+    dir="${S2I_SOURCE_DIR}/build/libs"
   else
     if [ "${ARTIFACT_DIR:0:1}" = "/" ]; then
        echo "ARTIFACT_DIR \"${ARTIFACT_DIR}\" must not be absolute but relative to the source directory"
@@ -42,7 +42,11 @@ function get_output_dir() {
   # Normalize dir
   dir=$(echo ${dir} | tr -s /)
   dir=${dir%/}
-  # The parent must exist but target/ won't exist yet
+  
+  # Create the build structure
+  mkdir -p ${dir}
+  
+  # The parent must exist but build/ won't exist yet
   if [ ! -d $(dirname "${dir}"}) ]; then
     echo "Please specify an existing build directory ARTIFACT_DIR (tried '$(dirname "${dir}")' which does not exist)"
     exit 1
