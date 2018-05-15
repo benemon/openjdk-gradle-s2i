@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Global S2I variable setup
 set -eo pipefail
 
@@ -89,7 +89,7 @@ function build_gradle() {
     echo "Setting GRADLE_OPTS to ${GRADLE_OPTS}"
   fi
   # Default args: no tests, if a module is specified, only assemble this module
-  local gradle_args=${GRADLE_ARGS:-"assemble"}
+  local gradle_args=${GRADLE_ARGS:"assemble"}
 
   echo "Found build.gradle ... "
   local gradle_cmd="${gradle_args} -Djava.net.preferIPv4Stack=true ${GRADLE_ARGS_APPEND}"
@@ -103,7 +103,7 @@ function build_gradle() {
   # Run Gradle
   gradle --version
   gradle ${gradle_cmd}
-  check_error "Gradle assemble" $?
+  check_error "Gradle build" $?
 
   # ==============
   # Copy artifacts
@@ -111,13 +111,7 @@ function build_gradle() {
   copy_artifacts ${build_dir} ${app_dir}
   check_error "copying artifacts from ${build_dir} to ${app_dir}" $?
 
-  # ======================
-  # ======================
-  # Remove cache if desired
-  if [ "x${GRADLE_CACHE}" != "x" ]; then
-    rm -rf "${GRADLE_CACHE}"
-    check_error "Cannot remove local Gradle cache ${GRADELE_CACHE" $?
-  fi
+
 
   cd ${old_dir}
 }
