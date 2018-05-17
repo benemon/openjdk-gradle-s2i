@@ -44,7 +44,7 @@ function get_output_dir() {
   dir=${dir%/}
   
   # Create the build structure
-  mkdir -p ${dir}
+  mkdir -p $(dirname "${dir}"}
   
   # The parent must exist but build/ won't exist yet
   if [ ! -d $(dirname "${dir}"}) ]; then
