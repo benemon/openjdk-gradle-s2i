@@ -14,19 +14,25 @@ LABEL name="openjdk18-gradle-openshift" \
       org.jboss.deployments-dir="/deployments" \
       description="Source To Image (S2I) image for Red Hat OpenShift providing Gradle and OpenJDK 1.8" \
       summary="Source To Image (S2I) image for Red Hat OpenShift providing Gradle and OpenJDK 1.8" \
-      io.fabric8.s2i.version.jolokia="1.5.0-redhat-1" \
-      io.fabric8.s2i.version.gradle="4.7"
+      io.fabric8.s2i.version.gradle="4.9"
 
 USER root
 
 # Install Gradle from distribution
-RUN curl -L -o /tmp/gradle.zip --retry 5 https://services.gradle.org/distributions/gradle-4.7-bin.zip && \
+RUN curl -L -o /tmp/gradle.zip --retry 5 https://services.gradle.org/distributions/gradle-4.9-bin.zip && \
     unzip -d /opt/gradle /tmp/gradle.zip && \
 	for f in /opt/gradle/*; do mv $f /opt/gradle/latest; done && \
 	ln -sf /opt/gradle/latest/bin/gradle /usr/local/bin/gradle
 
+ENV GRADLE_USER_HOME="/opt/gradle"
+
+# Add custom S2I scripts
 COPY scripts/ /opt/s2i/
 
+# Add default configuration
+COPY conf/ /opt/gradle
+
+# Set permissions correctly for the artefacts we've added
 RUN chgrp -R 0 /opt/gradle && \
     chgrp -R 0 /opt/s2i && \
     chmod -R g=u /opt/gradle && \
